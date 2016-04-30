@@ -42,9 +42,12 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.annotation.*;
+
 /**
  * Binded interpreters for a note
  */
+@XmlRootElement(name="Note")
 public class Note implements Serializable, JobListener {
   static Logger logger = LoggerFactory.getLogger(Note.class);
   private static final long serialVersionUID = 7920699076577612429L;
@@ -56,25 +59,43 @@ public class Note implements Serializable, JobListener {
     delayedPersistThreadPool.setRemoveOnCancelPolicy(true);
   }
 
+
   final List<Paragraph> paragraphs = new LinkedList<>();
-
+  @XmlElement
   private String name = "";
+  @XmlAttribute
   private String id;
+  @XmlElementWrapper
+  @XmlElement
+  private HashSet<String> owners = new HashSet<String>();
+  @XmlElementWrapper
+  @XmlElement
+  private HashSet<String> readers = new HashSet<String>();
+  @XmlElementWrapper
+  @XmlElement
+  private HashSet<String> writers = new HashSet<String>();
 
+  @XmlTransient
   @SuppressWarnings("rawtypes")
   Map<String, List<AngularObject>> angularObjects = new HashMap<>();
 
-  private transient NoteInterpreterLoader replLoader;
-  private transient JobListenerFactory jobListenerFactory;
-  private transient NotebookRepo repo;
-  private transient SearchService index;
-  private transient ScheduledFuture delayedPersist;
+  @XmlTransient
+  private  NoteInterpreterLoader replLoader;
+  @XmlTransient
+  private  JobListenerFactory jobListenerFactory;
+  @XmlTransient
+  private  NotebookRepo repo;
+  @XmlTransient
+  private  SearchService index;
+  @XmlTransient
+  private  ScheduledFuture delayedPersist;
 
   /**
    * note configurations.
    *
    * - looknfeel - cron
    */
+  @XmlTransient
   private Map<String, Object> config = new HashMap<>();
 
   /**
@@ -82,6 +103,7 @@ public class Note implements Serializable, JobListener {
    *
    * - cron : cron expression validity.
    */
+  @XmlTransient
   private Map<String, Object> info = new HashMap<>();
 
 
@@ -116,34 +138,80 @@ public class Note implements Serializable, JobListener {
     this.name = name;
   }
 
+  public HashSet<String> getOwners() {
+    return (new HashSet<String>(owners));
+  }
+
+  public void setOwners(HashSet<String> owners) {
+    this.owners = new HashSet<String>(owners);
+  }
+
+  public HashSet<String> getReaders() {
+    return (new HashSet<String>(readers));
+  }
+
+  public void setReaders(HashSet<String> readers) {
+    this.readers = new HashSet<String>(readers);
+  }
+
+  public HashSet<String> getWriters() {
+    return (new HashSet<String>(writers));
+  }
+
+  public void setWriters(HashSet<String> writers) {
+    this.writers = new HashSet<String>(writers);
+  }
+
+  public boolean isOwner(HashSet<String> entities) {
+    return isMember(entities, this.owners);
+  }
+
+  public boolean isWriter(HashSet<String> entities) {
+    return isMember(entities, this.writers) || isMember(entities, this.owners);
+  }
+
+  public boolean isReader(HashSet<String> entities) {
+    return isMember(entities, this.readers) ||
+            isMember(entities, this.owners) ||
+            isMember(entities, this.writers);
+  }
+
+  // return true if b is empty or if (a intersection b) is non-empty
+  private boolean isMember(HashSet<String> a, HashSet<String> b) {
+    Set<String> intersection = new HashSet<String>(b);
+    intersection.retainAll(a);
+    return (b.isEmpty() || (intersection.size() > 0));
+  }
+  @XmlTransient
   public NoteInterpreterLoader getNoteReplLoader() {
     return replLoader;
   }
-
+  @XmlTransient
   public void setReplLoader(NoteInterpreterLoader replLoader) {
     this.replLoader = replLoader;
   }
 
+  @XmlTransient
   public JobListenerFactory getJobListenerFactory() {
     return jobListenerFactory;
   }
-
+  @XmlTransient
   public void setJobListenerFactory(JobListenerFactory jobListenerFactory) {
     this.jobListenerFactory = jobListenerFactory;
   }
-
+  @XmlTransient
   public NotebookRepo getNotebookRepo() {
     return repo;
   }
-
+  @XmlTransient
   public void setNotebookRepo(NotebookRepo repo) {
     this.repo = repo;
   }
-
+  @XmlTransient
   public void setIndex(SearchService index) {
     this.index = index;
   }
-
+  @XmlTransient
   @SuppressWarnings("rawtypes")
   public Map<String, List<AngularObject>> getAngularObjects() {
     return angularObjects;
@@ -308,7 +376,7 @@ public class Note implements Serializable, JobListener {
     /** because empty list, cannot remove nothing right? */
     return true;
   }
-
+  @XmlTransient
   public Paragraph getParagraph(String paragraphId) {
     synchronized (paragraphs) {
       for (Paragraph p : paragraphs) {
@@ -390,6 +458,7 @@ public class Note implements Serializable, JobListener {
     return p.completion(buffer, cursor);
   }
 
+  @XmlTransient
   public List<Paragraph> getParagraphs() {
     synchronized (paragraphs) {
       return new LinkedList<Paragraph>(paragraphs);
@@ -481,14 +550,14 @@ public class Note implements Serializable, JobListener {
       delayedPersist.cancel(false);
     }
   }
-
+  @XmlTransient
   public Map<String, Object> getConfig() {
     if (config == null) {
       config = new HashMap<>();
     }
     return config;
   }
-
+  @XmlTransient
   public void setConfig(Map<String, Object> config) {
     this.config = config;
   }
