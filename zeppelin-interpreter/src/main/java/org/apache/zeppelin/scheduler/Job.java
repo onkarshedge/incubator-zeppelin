@@ -25,6 +25,8 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.annotation.*;
+
 
 /**
  * Skeletal implementation of the Job concept.
@@ -38,6 +40,7 @@ import org.slf4j.LoggerFactory;
  *  Changing/adding/deleting non transitive field name need consideration of that.
  *
  */
+@XmlAccessorType(XmlAccessType.NONE)
 public abstract class Job {
   /**
    * Job status.
@@ -70,11 +73,16 @@ public abstract class Job {
     }
   }
 
+  @XmlElement
   private String jobName;
+  @XmlElement
   String id;
   Object result;
+  @XmlElement
   Date dateCreated;
+  @XmlElement
   Date dateStarted;
+  @XmlElement
   Date dateFinished;
   Status status;
 
@@ -117,6 +125,8 @@ public abstract class Job {
 
     setStatus(Status.READY);
   }
+
+  public Job(){}
 
   public String getId() {
     return id;

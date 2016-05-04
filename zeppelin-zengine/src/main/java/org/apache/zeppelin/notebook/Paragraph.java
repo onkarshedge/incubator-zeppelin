@@ -32,6 +32,7 @@ import org.apache.zeppelin.scheduler.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.annotation.*;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
@@ -42,15 +43,20 @@ import com.google.common.annotations.VisibleForTesting;
  * Paragraph is a representation of an execution unit.
  *
  */
+@XmlRootElement(name = "paragraph")
+@XmlAccessorType(XmlAccessType.NONE)
 public class Paragraph extends Job implements Serializable, Cloneable {
   private static final long serialVersionUID = -6328572073497992016L;
 
   private transient NoteInterpreterLoader replLoader;
   private transient Note note;
 
+  @XmlElement
   String title;
+  @XmlElement
   String text;
   AuthenticationInfo authenticationInfo;
+  @XmlElement
   Date dateUpdated;
   private Map<String, Object> config; // paragraph configs like isOpen, colWidth, etc
   public final GUI settings;          // form and parameter settings
@@ -85,6 +91,11 @@ public class Paragraph extends Job implements Serializable, Cloneable {
     dateUpdated = null;
     settings = new GUI();
     config = new HashMap<String, Object>();
+  }
+
+  private Paragraph(){
+    super();
+    settings = new GUI();
   }
 
   private static String generateId() {

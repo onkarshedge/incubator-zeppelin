@@ -50,234 +50,234 @@ import javax.xml.bind.*;
  *
  */
 public class XmlNotebookRepo implements NotebookRepo {
-    Logger logger = LoggerFactory.getLogger(VFSNotebookRepo.class);
+  Logger logger = LoggerFactory.getLogger(VFSNotebookRepo.class);
 
-    private FileSystemManager fsManager;
-    private URI filesystemRoot;
-    private ZeppelinConfiguration conf;
+  private FileSystemManager fsManager;
+  private URI filesystemRoot;
+  private ZeppelinConfiguration conf;
 
-    public XmlNotebookRepo(ZeppelinConfiguration conf) throws IOException {
-        this.conf = conf;
+  public XmlNotebookRepo(ZeppelinConfiguration conf) throws IOException {
+    this.conf = conf;
 
-        try {
-            filesystemRoot = new URI(conf.getNotebookDir());
-        } catch (URISyntaxException e1) {
-            throw new IOException(e1);
-        }
-
-        if (filesystemRoot.getScheme() == null) { // it is local path
-            try {
-                this.filesystemRoot = new URI(new File(
-                        conf.getRelativeDir(filesystemRoot.getPath() + "-xml")).getAbsolutePath());
-            } catch (URISyntaxException e) {
-                throw new IOException(e);
-            }
-        } else {
-            this.filesystemRoot = filesystemRoot;
-        }
-
-        fsManager = VFS.getManager();
-        FileObject file = fsManager.resolveFile(filesystemRoot.getPath());
-        if (!file.exists()) {
-            logger.info("Notebook dir doesn't exist, create.");
-            file.createFolder();
-        }
+    try {
+      filesystemRoot = new URI(conf.getNotebookDir());
+    } catch (URISyntaxException e1) {
+      throw new IOException(e1);
     }
 
-    private String getPath(String path) {
-        if (path == null || path.trim().length() == 0) {
-            return filesystemRoot.toString();
-        }
-        if (path.startsWith("/")) {
-            return filesystemRoot.toString() + path;
-        } else {
-            return filesystemRoot.toString() + "/" + path;
-        }
+    if (filesystemRoot.getScheme() == null) { // it is local path
+      try {
+        this.filesystemRoot = new URI(new File(
+            conf.getRelativeDir(filesystemRoot.getPath() + "-xml")).getAbsolutePath());
+      } catch (URISyntaxException e) {
+        throw new IOException(e);
+      }
+    } else {
+      this.filesystemRoot = filesystemRoot;
     }
 
-    private boolean isDirectory(FileObject fo) throws IOException {
-        if (fo == null) return false;
-        if (fo.getType() == FileType.FOLDER) {
-            return true;
-        } else {
-            return false;
+    fsManager = VFS.getManager();
+    FileObject file = fsManager.resolveFile(filesystemRoot.getPath());
+    if (!file.exists()) {
+      logger.info("Notebook dir doesn't exist, create.");
+      file.createFolder();
+    }
+  }
+
+  private String getPath(String path) {
+    if (path == null || path.trim().length() == 0) {
+      return filesystemRoot.toString();
+    }
+    if (path.startsWith("/")) {
+      return filesystemRoot.toString() + path;
+    } else {
+      return filesystemRoot.toString() + "/" + path;
+    }
+  }
+
+  private boolean isDirectory(FileObject fo) throws IOException {
+    if (fo == null) return false;
+    if (fo.getType() == FileType.FOLDER) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  @Override
+  public List<NoteInfo> list() throws IOException {
+    FileObject rootDir = getRootDir();
+
+    FileObject[] children = rootDir.getChildren();
+
+    List<NoteInfo> infos = new LinkedList<NoteInfo>();
+    for (FileObject f : children) {
+      String fileName = f.getName().getBaseName();
+      if (f.isHidden()
+          || fileName.startsWith(".")
+          || fileName.startsWith("#")
+          || fileName.startsWith("~")) {
+        // skip hidden, temporary files
+        continue;
+      }
+
+      if (!isDirectory(f)) {
+        // currently single note is saved like, [NOTE_ID]/note.json.
+        // so it must be a directory
+        continue;
+      }
+
+      NoteInfo info = null;
+
+      try {
+        info = getNoteInfo(f);
+        if (info != null) {
+          infos.add(info);
         }
+      } catch (IOException e) {
+        logger.error("Can't read note " + f.getName().toString(), e);
+      }
     }
 
-    @Override
-    public List<NoteInfo> list() throws IOException {
-        FileObject rootDir = getRootDir();
+    return infos;
+  }
 
-        FileObject[] children = rootDir.getChildren();
-
-        List<NoteInfo> infos = new LinkedList<NoteInfo>();
-        for (FileObject f : children) {
-            String fileName = f.getName().getBaseName();
-            if (f.isHidden()
-                    || fileName.startsWith(".")
-                    || fileName.startsWith("#")
-                    || fileName.startsWith("~")) {
-                // skip hidden, temporary files
-                continue;
-            }
-
-            if (!isDirectory(f)) {
-                // currently single note is saved like, [NOTE_ID]/note.json.
-                // so it must be a directory
-                continue;
-            }
-
-            NoteInfo info = null;
-
-            try {
-                info = getNoteInfo(f);
-                if (info != null) {
-                    infos.add(info);
-                }
-            } catch (IOException e) {
-                logger.error("Can't read note " + f.getName().toString(), e);
-            }
-        }
-
-        return infos;
+  private Note getNote(FileObject noteDir) throws IOException {
+    if (!isDirectory(noteDir)) {
+      throw new IOException(noteDir.getName().toString() + " is not a directory");
     }
 
-    private Note getNote(FileObject noteDir) throws IOException {
-        if (!isDirectory(noteDir)) {
-            throw new IOException(noteDir.getName().toString() + " is not a directory");
-        }
+    FileObject noteXML = noteDir.resolveFile("note.xml", NameScope.CHILD);
+    if (!noteXML.exists()) {
+      throw new IOException(noteXML.getName().toString() + " not found");
+    }
 
-        FileObject noteXML = noteDir.resolveFile("note.xml", NameScope.CHILD);
-        if (!noteXML.exists()) {
-            throw new IOException(noteXML.getName().toString() + " not found");
-        }
+    Unmarshaller unmarshaller = null;
+    try {
+      JAXBContext jaxbContext = JAXBContext.newInstance(Note.class);
+      unmarshaller = jaxbContext.createUnmarshaller();
+    } catch (JAXBException e) {
+      e.printStackTrace();
+    }
 
-        Unmarshaller unmarshaller = null;
-        try {
-            JAXBContext jaxbContext = JAXBContext.newInstance(Note.class);
-             unmarshaller = jaxbContext.createUnmarshaller();
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }
+    FileContent content = noteXML.getContent();
+    InputStream ins = content.getInputStream();
+    // String xmlcontent = IOUtils.toString(ins, conf.getString(ConfVars.ZEPPELIN_ENCODING));
 
-        FileContent content = noteXML.getContent();
-        InputStream ins = content.getInputStream();
-        // String xmlcontent = IOUtils.toString(ins, conf.getString(ConfVars.ZEPPELIN_ENCODING));
-
-        Note note = null;
-        try {
-            note = (Note)unmarshaller.unmarshal(ins);
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }
-        ins.close();
+    Note note = null;
+    try {
+      note = (Note) unmarshaller.unmarshal(ins);
+    } catch (JAXBException e) {
+      e.printStackTrace();
+    }
+    ins.close();
 //    note.setReplLoader(replLoader);
 //    note.jobListenerFactory = jobListenerFactory;
 
-        for (Paragraph p : note.getParagraphs()) {
-            if (p.getStatus() == Status.PENDING || p.getStatus() == Status.RUNNING) {
-                p.setStatus(Status.ABORT);
-            }
-        }
-
-        return note;
+    for (Paragraph p : note.getParagraphs()) {
+      if (p.getStatus() == Status.PENDING || p.getStatus() == Status.RUNNING) {
+        p.setStatus(Status.ABORT);
+      }
     }
 
-    private NoteInfo getNoteInfo(FileObject noteDir) throws IOException {
-        Note note = getNote(noteDir);
-        return new NoteInfo(note);
+    return note;
+  }
+
+  private NoteInfo getNoteInfo(FileObject noteDir) throws IOException {
+    Note note = getNote(noteDir);
+    return new NoteInfo(note);
+  }
+
+  @Override
+  public Note get(String noteId) throws IOException {
+    FileObject rootDir = fsManager.resolveFile(getPath("/"));
+    FileObject noteDir = rootDir.resolveFile(noteId, NameScope.CHILD);
+
+    return getNote(noteDir);
+  }
+
+  protected FileObject getRootDir() throws IOException {
+    FileObject rootDir = fsManager.resolveFile(getPath("/"));
+
+    if (!rootDir.exists()) {
+      throw new IOException("Root path does not exists");
     }
 
-    @Override
-    public Note get(String noteId) throws IOException {
-        FileObject rootDir = fsManager.resolveFile(getPath("/"));
-        FileObject noteDir = rootDir.resolveFile(noteId, NameScope.CHILD);
-
-        return getNote(noteDir);
+    if (!isDirectory(rootDir)) {
+      throw new IOException("Root path is not a directory");
     }
 
-    protected FileObject getRootDir() throws IOException {
-        FileObject rootDir = fsManager.resolveFile(getPath("/"));
+    return rootDir;
+  }
 
-        if (!rootDir.exists()) {
-            throw new IOException("Root path does not exists");
-        }
+  @Override
+  public synchronized void save(Note note) throws IOException {
 
-        if (!isDirectory(rootDir)) {
-            throw new IOException("Root path is not a directory");
-        }
-
-        return rootDir;
+    Marshaller marshaller = null;
+    try {
+      JAXBContext jaxbContext = JAXBContext.newInstance(Note.class);
+      marshaller = jaxbContext.createMarshaller();
+      marshaller.setProperty(Marshaller.JAXB_ENCODING, "UTF-8");
+      marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+    } catch (JAXBException e) {
+      e.printStackTrace();
     }
 
-    @Override
-    public synchronized void save(Note note) throws IOException {
+    FileObject rootDir = getRootDir();
 
-        Marshaller marshaller = null;
-        try {
-            JAXBContext jaxbContext = JAXBContext.newInstance(Note.class);
-            marshaller = jaxbContext.createMarshaller();
-            marshaller.setProperty(Marshaller.JAXB_ENCODING, "UTF-8");
-            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }
+    FileObject noteDir = rootDir.resolveFile(note.id(), NameScope.CHILD);
 
-        FileObject rootDir = getRootDir();
-
-        FileObject noteDir = rootDir.resolveFile(note.id(), NameScope.CHILD);
-
-        if (!noteDir.exists()) {
-            noteDir.createFolder();
-        }
-        if (!isDirectory(noteDir)) {
-            throw new IOException(noteDir.getName().toString() + " is not a directory");
-        }
-
-        FileObject noteXML = noteDir.resolveFile(".note.xml", NameScope.CHILD);
-        // false means not appending. creates file if not exists
-        OutputStream out = noteXML.getContent().getOutputStream(false);
-        try {
-            if (marshaller != null) {
-                marshaller.marshal(note, out);
-            }
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }finally {
-            out.close();
-        }
-
-
-        noteXML.moveTo(noteDir.resolveFile("note.xml", NameScope.CHILD));
+    if (!noteDir.exists()) {
+      noteDir.createFolder();
+    }
+    if (!isDirectory(noteDir)) {
+      throw new IOException(noteDir.getName().toString() + " is not a directory");
     }
 
-    @Override
-    public void remove(String noteId) throws IOException {
-        FileObject rootDir = fsManager.resolveFile(getPath("/"));
-        FileObject noteDir = rootDir.resolveFile(noteId, NameScope.CHILD);
-
-        if (!noteDir.exists()) {
-            // nothing to do
-            return;
-        }
-
-        if (!isDirectory(noteDir)) {
-            // it is not look like zeppelin note savings
-            throw new IOException("Can not remove " + noteDir.getName().toString());
-        }
-
-        noteDir.delete(Selectors.SELECT_SELF_AND_CHILDREN);
+    FileObject noteXML = noteDir.resolveFile(".note.xml", NameScope.CHILD);
+    // false means not appending. creates file if not exists
+    OutputStream out = noteXML.getContent().getOutputStream(false);
+    try {
+      if (marshaller != null) {
+        marshaller.marshal(note, out);
+      }
+    } catch (JAXBException e) {
+      e.printStackTrace();
+    } finally {
+      out.close();
     }
 
-    @Override
-    public void close() {
-        //no-op
+
+    noteXML.moveTo(noteDir.resolveFile("note.xml", NameScope.CHILD));
+  }
+
+  @Override
+  public void remove(String noteId) throws IOException {
+    FileObject rootDir = fsManager.resolveFile(getPath("/"));
+    FileObject noteDir = rootDir.resolveFile(noteId, NameScope.CHILD);
+
+    if (!noteDir.exists()) {
+      // nothing to do
+      return;
     }
 
-    @Override
-    public void checkpoint(String noteId, String checkPointName) throws IOException {
-        // no-op
-        logger.info("Checkpoint feature isn't supported in {}", this.getClass().toString());
+    if (!isDirectory(noteDir)) {
+      // it is not look like zeppelin note savings
+      throw new IOException("Can not remove " + noteDir.getName().toString());
     }
+
+    noteDir.delete(Selectors.SELECT_SELF_AND_CHILDREN);
+  }
+
+  @Override
+  public void close() {
+    //no-op
+  }
+
+  @Override
+  public void checkpoint(String noteId, String checkPointName) throws IOException {
+    // no-op
+    logger.info("Checkpoint feature isn't supported in {}", this.getClass().toString());
+  }
 
 }

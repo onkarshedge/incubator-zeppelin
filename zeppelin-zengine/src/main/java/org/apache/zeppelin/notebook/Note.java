@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+
 import org.apache.zeppelin.display.AngularObject;
 import org.apache.zeppelin.display.AngularObjectRegistry;
 import org.apache.zeppelin.display.Input;
@@ -43,23 +44,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.annotation.*;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Binded interpreters for a note
  */
-@XmlRootElement(name="Note")
+@XmlRootElement(name = "Note")
+@XmlAccessorType(XmlAccessType.NONE)
 public class Note implements Serializable, JobListener {
   static Logger logger = LoggerFactory.getLogger(Note.class);
   private static final long serialVersionUID = 7920699076577612429L;
 
   // threadpool for delayed persist of note
   private static final ScheduledThreadPoolExecutor delayedPersistThreadPool =
-          new ScheduledThreadPoolExecutor(0);
+      new ScheduledThreadPoolExecutor(0);
+
   static {
     delayedPersistThreadPool.setRemoveOnCancelPolicy(true);
   }
 
-
+  @XmlElementWrapper
+  @XmlElement
   final List<Paragraph> paragraphs = new LinkedList<>();
   @XmlElement
   private String name = "";
@@ -75,47 +83,91 @@ public class Note implements Serializable, JobListener {
   @XmlElement
   private HashSet<String> writers = new HashSet<String>();
 
-  @XmlTransient
+
   @SuppressWarnings("rawtypes")
+  @XmlJavaTypeAdapter(MapofAngularListsAdapter.class)
   Map<String, List<AngularObject>> angularObjects = new HashMap<>();
 
-  @XmlTransient
-  private  NoteInterpreterLoader replLoader;
-  @XmlTransient
-  private  JobListenerFactory jobListenerFactory;
-  @XmlTransient
-  private  NotebookRepo repo;
-  @XmlTransient
-  private  SearchService index;
-  @XmlTransient
-  private  ScheduledFuture delayedPersist;
+
+  private transient NoteInterpreterLoader replLoader;
+  private transient JobListenerFactory jobListenerFactory;
+  private transient NotebookRepo repo;
+  private transient SearchService index;
+  private transient ScheduledFuture delayedPersist;
 
   /**
    * note configurations.
-   *
+   * <p/>
    * - looknfeel - cron
    */
-  @XmlTransient
+  @XmlElementWrapper
+  @XmlElement
   private Map<String, Object> config = new HashMap<>();
 
   /**
    * note information.
-   *
+   * <p/>
    * - cron : cron expression validity.
    */
-  @XmlTransient
+  @XmlElementWrapper
+  @XmlElement
   private Map<String, Object> info = new HashMap<>();
 
 
-  public Note() {}
+  public Note() {
+  }
 
   public Note(NotebookRepo repo, NoteInterpreterLoader replLoader,
-      JobListenerFactory jlFactory, SearchService noteIndex) {
+              JobListenerFactory jlFactory, SearchService noteIndex) {
     this.repo = repo;
     this.replLoader = replLoader;
     this.jobListenerFactory = jlFactory;
     this.index = noteIndex;
     generateId();
+  }
+
+  private static class MyAngularObjectMapList {
+    @XmlAttribute
+    String key;
+    @XmlElementWrapper
+    @XmlElement
+    List<AngularObject> value;
+
+    public MyAngularObjectMapList(String key, List<AngularObject> value) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  private static class AngularObjectMapWrapper {
+    @XmlElementWrapper
+    @XmlElement
+    List<MyAngularObjectMapList> list = new ArrayList<MyAngularObjectMapList>();
+  }
+
+  private static class MapofAngularListsAdapter extends
+      XmlAdapter<AngularObjectMapWrapper, Map<String, List<AngularObject>>> {
+
+    @Override
+    public Map<String, List<AngularObject>> unmarshal(AngularObjectMapWrapper v) throws Exception {
+      HashMap<String, List<AngularObject>> unmarshaledMap =
+          new HashMap<String, List<AngularObject>>();
+      for (MyAngularObjectMapList singleentry : v.list) {
+        unmarshaledMap.put(singleentry.key, singleentry.value);
+      }
+      return unmarshaledMap;
+    }
+
+    @Override
+    public AngularObjectMapWrapper marshal(Map<String, List<AngularObject>> v) throws Exception {
+      AngularObjectMapWrapper marshalledMap = new AngularObjectMapWrapper();
+      for (Map.Entry<String, List<AngularObject>> entry : v.entrySet()) {
+        MyAngularObjectMapList myAngularObjectMapList =
+            new MyAngularObjectMapList(entry.getKey(), entry.getValue());
+        marshalledMap.list.add(myAngularObjectMapList);
+      }
+      return marshalledMap;
+    }
   }
 
   private void generateId() {
@@ -172,8 +224,8 @@ public class Note implements Serializable, JobListener {
 
   public boolean isReader(HashSet<String> entities) {
     return isMember(entities, this.readers) ||
-            isMember(entities, this.owners) ||
-            isMember(entities, this.writers);
+        isMember(entities, this.owners) ||
+        isMember(entities, this.writers);
   }
 
   // return true if b is empty or if (a intersection b) is non-empty
@@ -182,36 +234,36 @@ public class Note implements Serializable, JobListener {
     intersection.retainAll(a);
     return (b.isEmpty() || (intersection.size() > 0));
   }
-  @XmlTransient
+
   public NoteInterpreterLoader getNoteReplLoader() {
     return replLoader;
   }
-  @XmlTransient
+
   public void setReplLoader(NoteInterpreterLoader replLoader) {
     this.replLoader = replLoader;
   }
 
-  @XmlTransient
+
   public JobListenerFactory getJobListenerFactory() {
     return jobListenerFactory;
   }
-  @XmlTransient
+
   public void setJobListenerFactory(JobListenerFactory jobListenerFactory) {
     this.jobListenerFactory = jobListenerFactory;
   }
-  @XmlTransient
+
   public NotebookRepo getNotebookRepo() {
     return repo;
   }
-  @XmlTransient
+
   public void setNotebookRepo(NotebookRepo repo) {
     this.repo = repo;
   }
-  @XmlTransient
+
   public void setIndex(SearchService index) {
     this.index = index;
   }
-  @XmlTransient
+
   @SuppressWarnings("rawtypes")
   public Map<String, List<AngularObject>> getAngularObjects() {
     return angularObjects;
@@ -320,7 +372,7 @@ public class Note implements Serializable, JobListener {
    * Move paragraph into the new index (order from 0 ~ n-1).
    *
    * @param paragraphId
-   * @param index new index
+   * @param index       new index
    */
   public void moveParagraph(String paragraphId, int index) {
     moveParagraph(paragraphId, index, false);
@@ -330,7 +382,7 @@ public class Note implements Serializable, JobListener {
    * Move paragraph into the new index (order from 0 ~ n-1).
    *
    * @param paragraphId
-   * @param index new index
+   * @param index                      new index
    * @param throwWhenIndexIsOutOfBound whether throw IndexOutOfBoundException
    *                                   when index is out of bound
    */
@@ -376,7 +428,7 @@ public class Note implements Serializable, JobListener {
     /** because empty list, cannot remove nothing right? */
     return true;
   }
-  @XmlTransient
+
   public Paragraph getParagraph(String paragraphId) {
     synchronized (paragraphs) {
       for (Paragraph p : paragraphs) {
@@ -394,7 +446,7 @@ public class Note implements Serializable, JobListener {
     }
   }
 
-  public List<Map<String, String>> generateParagraphsInfo (){
+  public List<Map<String, String>> generateParagraphsInfo() {
     List<Map<String, String>> paragraphsInfo = new LinkedList<>();
     synchronized (paragraphs) {
       for (Paragraph p : paragraphs) {
@@ -458,7 +510,6 @@ public class Note implements Serializable, JobListener {
     return p.completion(buffer, cursor);
   }
 
-  @XmlTransient
   public List<Paragraph> getParagraphs() {
     synchronized (paragraphs) {
       return new LinkedList<Paragraph>(paragraphs);
@@ -510,6 +561,7 @@ public class Note implements Serializable, JobListener {
 
   /**
    * Persist this note with maximum delay.
+   *
    * @param maxDelaySec
    */
   public void persist(int maxDelaySec) {
@@ -550,14 +602,14 @@ public class Note implements Serializable, JobListener {
       delayedPersist.cancel(false);
     }
   }
-  @XmlTransient
+
   public Map<String, Object> getConfig() {
     if (config == null) {
       config = new HashMap<>();
     }
     return config;
   }
-  @XmlTransient
+
   public void setConfig(Map<String, Object> config) {
     this.config = config;
   }
@@ -582,6 +634,9 @@ public class Note implements Serializable, JobListener {
   }
 
   @Override
-  public void onProgressUpdate(Job job, int progress) {}
+  public void onProgressUpdate(Job job, int progress) {
+  }
 
 }
+
+
