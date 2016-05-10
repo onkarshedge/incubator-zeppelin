@@ -18,6 +18,7 @@
 package org.apache.zeppelin.notebook;
 
 import org.apache.zeppelin.display.AngularObject;
+import com.google.gson.internal.StringMap;
 import org.apache.zeppelin.display.AngularObjectRegistry;
 import org.apache.zeppelin.user.AuthenticationInfo;
 import org.apache.zeppelin.display.GUI;
@@ -45,6 +46,7 @@ import com.google.common.annotations.VisibleForTesting;
  */
 @XmlRootElement(name = "paragraph")
 @XmlAccessorType(XmlAccessType.NONE)
+@XmlSeeAlso({StringMap.class})
 public class Paragraph extends Job implements Serializable, Cloneable {
   private static final long serialVersionUID = -6328572073497992016L;
 
@@ -58,7 +60,9 @@ public class Paragraph extends Job implements Serializable, Cloneable {
   AuthenticationInfo authenticationInfo;
   @XmlElement
   Date dateUpdated;
+  @XmlElement
   private Map<String, Object> config; // paragraph configs like isOpen, colWidth, etc
+  @XmlElement
   public final GUI settings;          // form and parameter settings
 
   @VisibleForTesting
@@ -91,11 +95,6 @@ public class Paragraph extends Job implements Serializable, Cloneable {
     dateUpdated = null;
     settings = new GUI();
     config = new HashMap<String, Object>();
-  }
-
-  private Paragraph(){
-    super();
-    settings = new GUI();
   }
 
   private static String generateId() {

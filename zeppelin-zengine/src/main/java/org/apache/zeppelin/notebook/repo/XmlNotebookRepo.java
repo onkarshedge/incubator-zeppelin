@@ -17,10 +17,7 @@
 
 package org.apache.zeppelin.notebook.repo;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.LinkedList;
@@ -162,11 +159,11 @@ public class XmlNotebookRepo implements NotebookRepo {
 
     FileContent content = noteXML.getContent();
     InputStream ins = content.getInputStream();
-    // String xmlcontent = IOUtils.toString(ins, conf.getString(ConfVars.ZEPPELIN_ENCODING));
-
+    String xmlcontent = IOUtils.toString(ins, conf.getString(ConfVars.ZEPPELIN_ENCODING));
+    StringReader reader = new StringReader(xmlcontent);
     Note note = null;
     try {
-      note = (Note) unmarshaller.unmarshal(ins);
+      note = (Note) unmarshaller.unmarshal(reader);
     } catch (JAXBException e) {
       e.printStackTrace();
     }

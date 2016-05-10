@@ -52,6 +52,7 @@ zeppelin-web/bower_components
 /drivers/
 /warehouse/
 /notebook/
+/notebook-xml/
 /local-repo/
 
 **/sessions/

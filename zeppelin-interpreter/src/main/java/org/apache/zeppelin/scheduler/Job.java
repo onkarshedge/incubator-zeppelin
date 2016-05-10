@@ -21,7 +21,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 
+import com.google.gson.internal.$Gson$Preconditions;
+import com.google.gson.internal.StringMap;
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.zeppelin.interpreter.InterpreterResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +44,7 @@ import javax.xml.bind.annotation.*;
  *
  */
 @XmlAccessorType(XmlAccessType.NONE)
+@XmlSeeAlso(InterpreterResult.class)
 public abstract class Job {
   /**
    * Job status.
@@ -77,6 +81,7 @@ public abstract class Job {
   private String jobName;
   @XmlElement
   String id;
+  @XmlElement
   Object result;
   @XmlElement
   Date dateCreated;

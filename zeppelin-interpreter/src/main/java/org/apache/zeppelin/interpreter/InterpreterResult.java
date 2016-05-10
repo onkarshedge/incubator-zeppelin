@@ -19,11 +19,18 @@ package org.apache.zeppelin.interpreter;
 
 import java.io.Serializable;
 import org.apache.commons.lang3.StringUtils;
+
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.util.*;
 
 /**
  * Interpreter result template.
  */
+@XmlRootElement(name = "result")
+@XmlAccessorType(XmlAccessType.NONE)
 public class InterpreterResult implements Serializable {
 
   /**
@@ -48,10 +55,14 @@ public class InterpreterResult implements Serializable {
     SVG,
     NULL
   }
-
+  @XmlElement
   Code code;
+  @XmlElement
   Type type;
+  @XmlElement
   String msg;
+
+  public InterpreterResult(){}
 
   public InterpreterResult(Code code) {
     this.code = code;
