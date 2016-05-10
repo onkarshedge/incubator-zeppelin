@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Zeppelin configuration.
- *
  */
 public class ZeppelinConfiguration extends XMLConfiguration {
   private static final String ZEPPELIN_SITE_XML = "zeppelin-site.xml";
@@ -68,7 +67,8 @@ public class ZeppelinConfiguration extends XMLConfiguration {
 
   /**
    * Load from resource.
-   *url = ZeppelinConfiguration.class.getResource(ZEPPELIN_SITE_XML);
+   * url = ZeppelinConfiguration.class.getResource(ZEPPELIN_SITE_XML);
+   *
    * @throws ConfigurationException
    */
   public static ZeppelinConfiguration create() {
@@ -112,15 +112,13 @@ public class ZeppelinConfiguration extends XMLConfiguration {
     if (properties == null || properties.size() == 0) {
       return d;
     }
-    StringBuilder allvalues = new StringBuilder(); // comma separated values for same name
     for (ConfigurationNode p : properties) {
       if (p.getChildren("name") != null && p.getChildren("name").size() > 0
           && name.equals(p.getChildren("name").get(0).getValue())) {
-        allvalues.append((String) p.getChildren("value").get(0).getValue());
-        allvalues.append(",");
+        return (String) p.getChildren("value").get(0).getValue();
       }
     }
-    return allvalues.length() > 0 ? allvalues.substring(0, allvalues.length() - 1).toString() : d;
+    return d;
   }
 
   private int getIntValue(String name, int d) {
@@ -275,9 +273,9 @@ public class ZeppelinConfiguration extends XMLConfiguration {
 
   public String getKeyStorePath() {
     return getRelativeDir(
-            String.format("%s/%s",
-                    getConfDir(),
-                    getString(ConfVars.ZEPPELIN_SSL_KEYSTORE_PATH)));
+        String.format("%s/%s",
+            getConfDir(),
+            getString(ConfVars.ZEPPELIN_SSL_KEYSTORE_PATH)));
   }
 
   public String getKeyStoreType() {
@@ -376,7 +374,7 @@ public class ZeppelinConfiguration extends XMLConfiguration {
     }
   }
 
-  public boolean isWindowsPath(String path){
+  public boolean isWindowsPath(String path) {
     return path.matches("^[A-Za-z]:\\\\.*");
   }
 
@@ -384,8 +382,7 @@ public class ZeppelinConfiguration extends XMLConfiguration {
     return getString(ConfVars.ZEPPELIN_CONF_DIR);
   }
 
-  public List<String> getAllowedOrigins()
-  {
+  public List<String> getAllowedOrigins() {
     if (getString(ConfVars.ZEPPELIN_ALLOWED_ORIGINS).isEmpty()) {
       return Arrays.asList(new String[0]);
     }
@@ -614,7 +611,8 @@ public class ZeppelinConfiguration extends XMLConfiguration {
     enum VarType {
       STRING {
         @Override
-        void checkType(String value) throws Exception {}
+        void checkType(String value) throws Exception {
+        }
       },
       INT {
         @Override
