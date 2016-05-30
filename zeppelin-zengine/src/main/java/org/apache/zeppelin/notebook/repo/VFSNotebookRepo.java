@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.LinkedList;
@@ -40,11 +42,22 @@ import org.apache.zeppelin.notebook.Note;
 import org.apache.zeppelin.notebook.NoteInfo;
 import org.apache.zeppelin.notebook.Paragraph;
 import org.apache.zeppelin.scheduler.Job.Status;
+import org.json.JSONObject;
+import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 
 /**
 *
@@ -209,6 +222,13 @@ public class VFSNotebookRepo implements NotebookRepo {
     gsonBuilder.setPrettyPrinting();
     Gson gson = gsonBuilder.create();
     String json = gson.toJson(note);
+    JSONObject jsonObject = new JSONObject(json);
+    String xml = null;
+    try {
+      xml = getprettyxml(XML.toString(jsonObject, "Note"));
+    } catch (TransformerException e) {
+      e.printStackTrace();
+    }
 
     FileObject rootDir = getRootDir();
 
@@ -227,6 +247,23 @@ public class VFSNotebookRepo implements NotebookRepo {
     out.write(json.getBytes(conf.getString(ConfVars.ZEPPELIN_ENCODING)));
     out.close();
     noteJson.moveTo(noteDir.resolveFile("note.json", NameScope.CHILD));
+
+    FileObject noteXml = noteDir.resolveFile(".note.xml", NameScope.CHILD);
+    OutputStream xmlOut = noteXml.getContent().getOutputStream(false);
+    xmlOut.write(xml.getBytes(conf.getString(ConfVars.ZEPPELIN_ENCODING)));
+    xmlOut.close();
+    noteXml.moveTo(noteDir.resolveFile("note.xml", NameScope.CHILD));
+  }
+
+  private String getprettyxml(String inputXml) throws TransformerException {
+    Transformer transformer = TransformerFactory.newInstance().newTransformer();
+    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+    StreamResult result = new StreamResult(new StringWriter());
+    StreamSource source = new StreamSource(new StringReader(inputXml));
+    transformer.transform(source, result);
+    String prettyXml = result.getWriter().toString();
+    return prettyXml;
   }
 
   @Override
